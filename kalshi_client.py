@@ -83,3 +83,10 @@ class KalshiClient:
         r = requests.post(url, headers=headers, json=order_data, timeout=15)
         r.raise_for_status()
         return r.json()
+        
+    def get_market(self, ticker: str):
+        path = f"/trade-api/v2/markets/{ticker}"
+        url = f"{self.base_url}/markets/{ticker}"
+        r = requests.get(url, headers=self._headers("GET", path), timeout=15)
+        r.raise_for_status()
+        return r.json()
