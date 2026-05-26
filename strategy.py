@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class StrategyDecision:
-    action: str            # "buy_yes", "buy_no", or "no_trade"
+    action: str
     confidence: float
     fair_yes_price: float
     best_yes_bid: float
     best_yes_ask: float
     spread: float
     reason: str
+
 
 class StrategyEngine:
     def __init__(self, min_edge_cents: float = 0.03, max_spread_cents: float = 0.08):
@@ -67,7 +69,6 @@ class StrategyEngine:
         midpoint = (best_yes_bid + best_yes_ask) / 2.0
 
         imbalance = self._simple_orderbook_imbalance(orderbook)
-
         adjustment = 0.02 * imbalance
         fair_price = midpoint + adjustment
 
@@ -87,7 +88,7 @@ class StrategyEngine:
                 best_yes_bid=best_yes_bid,
                 best_yes_ask=best_yes_ask,
                 spread=spread,
-                reason="Incomplete orderbook."
+                reason="Incomplete orderbook.",
             )
 
         if spread > self.max_spread:
@@ -98,11 +99,11 @@ class StrategyEngine:
                 best_yes_bid=best_yes_bid,
                 best_yes_ask=best_yes_ask,
                 spread=spread,
-                reason="Spread too wide."
+                reason="Spread too wide.",
             )
 
         yes_edge = fair_yes - best_yes_ask
-        no_edge = (1.0 - fair_yes) - (1.0 - best_yes_bid)
+        no_edge = best_yes_bid - fair_yes
 
         if yes_edge >= self.min_edge:
             return StrategyDecision(
@@ -112,7 +113,7 @@ class StrategyEngine:
                 best_yes_bid=best_yes_bid,
                 best_yes_ask=best_yes_ask,
                 spread=spread,
-                reason="YES appears underpriced."
+                reason="YES appears underpriced.",
             )
 
         if no_edge >= self.min_edge:
@@ -123,7 +124,7 @@ class StrategyEngine:
                 best_yes_bid=best_yes_bid,
                 best_yes_ask=best_yes_ask,
                 spread=spread,
-                reason="NO appears underpriced."
+                reason="NO appears underpriced.",
             )
 
         return StrategyDecision(
@@ -133,5 +134,5 @@ class StrategyEngine:
             best_yes_bid=best_yes_bid,
             best_yes_ask=best_yes_ask,
             spread=spread,
-            reason="No edge above threshold."
+            reason="No edge above threshold.",
         )
