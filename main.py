@@ -5,6 +5,7 @@ from strategy import StrategyEngine
 from execution import ExecutionEngine
 from notifier import notify
 
+
 def find_btc_market(markets_payload):
     markets = markets_payload.get("markets", [])
     for market in markets:
@@ -19,6 +20,7 @@ def find_btc_market(markets_payload):
         if "BTC" in blob and ("15M" in blob or "15 MIN" in blob or "15-MIN" in blob):
             return market
     return None
+
 
 def main():
     client = KalshiClient(
@@ -45,8 +47,19 @@ def main():
     print("Computed equity:", equity)
     print("Open position exists:", open_position)
 
-    markets = client.get_markets()
-    btc_market = find_btc_market(markets, config.BTC_MARKET_TICKER_PREFIX)
+    markets = client.get_markets(status="all", limit=200)
+
+    print("Sample markets returned:")
+    for m in markets.get("markets", [])[:10]:
+        print({
+            "ticker": m.get("ticker"),
+            "title": m.get("title"),
+            "series_ticker": m.get("series_ticker"),
+            "event_ticker": m.get("event_ticker"),
+            "status": m.get("status"),
+        })
+
+    btc_market = find_btc_market(markets)
 
     if not btc_market:
         notify("No BTC 15-minute market found.")
@@ -57,6 +70,8 @@ def main():
     print("Selected market:", ticker)
 
     orderbook = client.get_orderbook(ticker)
+    print("Orderbook payload:", orderbook)
+
     strategy_decision = strategy.evaluate(orderbook)
     print("Strategy decision:", strategy_decision)
 
@@ -80,7 +95,11 @@ def main():
         return
 
     side = "yes" if strategy_decision.action == "buy_yes" else "no"
-    entry_price = strategy_decision.best_yes_ask if side == "yes" else (1.0 - strategy_decision.best_yes_bid)
+    entry_price = (
+        strategy_decision.best_yes_ask
+        if side == "yes"
+        else (1.0 - strategy_decision.best_yes_bid)
+    )
 
     contracts = execution.contracts_for_dollars(
         trade_dollars=risk_decision.suggested_trade_dollars,
@@ -96,6 +115,7 @@ def main():
 
     notify(f"{result.mode.upper()} result on {ticker}: {result.message}")
     print("Execution result:", result)
+
 
 if __name__ == "__main__":
     main()
