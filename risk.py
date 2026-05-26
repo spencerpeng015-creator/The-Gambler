@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class RiskDecision:
     approved: bool
     reason: str
     max_trade_dollars: float
     suggested_trade_dollars: float
+
 
 class RiskManager:
     def __init__(self, max_portfolio_risk_pct: float = 0.5, one_position_at_a_time: bool = True):
