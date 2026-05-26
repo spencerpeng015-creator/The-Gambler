@@ -14,7 +14,7 @@ class Config:
     STARTING_CAPITAL: float = float(os.getenv("STARTING_CAPITAL", "200"))
     MAX_PORTFOLIO_RISK_PCT: float = float(os.getenv("MAX_PORTFOLIO_RISK_PCT", "0.5"))
     BTC_SERIES_TICKER: str = os.getenv("BTC_SERIES_TICKER", "KXBTC15M")
-    LOOP_SECONDS: int = int(os.getenv("LOOP_SECONDS", "20"))
+    LOOP_SECONDS: int = int(os.getenv("LOOP_SECONDS", "2"))
 
 
 config = Config()
