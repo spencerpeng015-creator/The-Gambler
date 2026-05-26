@@ -45,7 +45,7 @@ class KalshiClient:
         r.raise_for_status()
         return r.json()
 
-    def get_markets(self, status=None, limit=100):
+    def get_markets(self, status=None, limit=500):
         params = {"limit": limit}
         if status:
             params["status"] = status
