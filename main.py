@@ -5,11 +5,18 @@ from strategy import StrategyEngine
 from execution import ExecutionEngine
 from notifier import notify
 
-def find_btc_market(markets_payload, prefix):
+def find_btc_market(markets_payload):
     markets = markets_payload.get("markets", [])
     for market in markets:
-        ticker = market.get("ticker", "")
-        if ticker.startswith(prefix):
+        ticker = str(market.get("ticker", "")).upper()
+        title = str(market.get("title", "")).upper()
+        subtitle = str(market.get("subtitle", "")).upper()
+        series_ticker = str(market.get("series_ticker", "")).upper()
+        event_ticker = str(market.get("event_ticker", "")).upper()
+
+        blob = " ".join([ticker, title, subtitle, series_ticker, event_ticker])
+
+        if "BTC" in blob and ("15M" in blob or "15 MIN" in blob or "15-MIN" in blob):
             return market
     return None
 
