@@ -16,11 +16,22 @@ class RiskManager:
         if not balance_payload:
             return 0.0
 
-        for key in ["portfolio_value", "equity", "balance", "cash_balance"]:
+        preferred_keys = [
+            "balance_dollars",
+            "portfolio_value_dollars",
+            "portfolio_value",
+            "equity",
+            "balance",
+            "cash_balance",
+        ]
+
+        for key in preferred_keys:
             value = balance_payload.get(key)
             if value is not None:
                 try:
-                    return float(value)
+                    value = float(value)
+                    if value > 0:
+                        return value
                 except (TypeError, ValueError):
                     pass
 
@@ -34,9 +45,18 @@ class RiskManager:
             return False
 
         positions = positions_payload.get("positions", [])
-        for position in positions:
-            if abs(float(position.get("position", 0))) > 0:
-                return True
+        market_positions = positions_payload.get("market_positions", [])
+        event_positions = positions_payload.get("event_positions", [])
+
+        for bucket in [positions, market_positions, event_positions]:
+            for position in bucket:
+                for key in ["position", "count", "net_position"]:
+                    if key in position:
+                        try:
+                            if abs(float(position.get(key, 0))) > 0:
+                                return True
+                        except (TypeError, ValueError):
+                            pass
         return False
 
     def approve_trade(
@@ -64,9 +84,4 @@ class RiskManager:
                 max_allowed,
             )
 
-        return RiskDecision(
-            True,
-            "Trade approved.",
-            max_allowed,
-            proposed_trade_dollars,
-        )
+        return RiskDecision(True, "Trade approved.", max_allowed, proposed_trade_dollars)
