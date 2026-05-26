@@ -47,7 +47,7 @@ def main():
     print("Computed equity:", equity)
     print("Open position exists:", open_position)
 
-    markets = client.get_markets(status="all", limit=200)
+    markets = client.get_markets(limit=200)
 
     print("Sample markets returned:")
     for m in markets.get("markets", [])[:10]:
