@@ -8,20 +8,18 @@ from execution import ExecutionEngine
 from notifier import notify
 
 
-def find_btc_market(markets_payload):
+def choose_active_market(markets_payload):
     markets = markets_payload.get("markets", [])
 
     candidates = []
     for market in markets:
-        ticker = str(market.get("ticker", "")).upper()
-        event_ticker = str(market.get("event_ticker", "")).upper()
-        title = str(market.get("title", "")).upper()
         status = str(market.get("status", "")).lower()
-
-        if "KXBTC15M" not in ticker and "KXBTC15M" not in event_ticker and "BITCOIN" not in title:
-            continue
+        ticker = str(market.get("ticker", "")).upper()
 
         if status not in {"active", "open", "initialized"}:
+            continue
+
+        if not ticker.startswith(config.BTC_SERIES_TICKER):
             continue
 
         candidates.append(market)
@@ -29,15 +27,14 @@ def find_btc_market(markets_payload):
     if not candidates:
         return None
 
-    active_first = sorted(
+    candidates = sorted(
         candidates,
         key=lambda m: (
             0 if str(m.get("status", "")).lower() == "active" else 1,
             str(m.get("ticker", "")),
         ),
     )
-
-    return active_first[0]
+    return candidates[0]
 
 
 def run_once():
@@ -65,43 +62,31 @@ def run_once():
     print("Computed equity:", equity, flush=True)
     print("Open position exists:", open_position, flush=True)
 
-    btc_market = None
+    markets = client.get_markets(
+        limit=200,
+        status="open",
+        series_ticker=config.BTC_SERIES_TICKER,
+    )
 
-    if config.BTC_TARGET_TICKER:
-        try:
-            direct_market = client.get_market(config.BTC_TARGET_TICKER)
-            market_obj = direct_market.get("market", direct_market)
-            print("Direct ticker lookup succeeded:", market_obj.get("ticker"), flush=True)
-            btc_market = market_obj
-        except Exception as e:
-            print("Direct ticker lookup failed:", repr(e), flush=True)
+    print("Series ticker used:", config.BTC_SERIES_TICKER, flush=True)
+    print("Markets returned for series:", len(markets.get("markets", [])), flush=True)
 
-    if not btc_market:
-        markets = client.get_markets(limit=500)
-        print("Total markets returned:", len(markets.get("markets", [])), flush=True)
+    for m in markets.get("markets", [])[:20]:
+        print(
+            {
+                "ticker": m.get("ticker"),
+                "title": m.get("title"),
+                "event_ticker": m.get("event_ticker"),
+                "status": m.get("status"),
+            },
+            flush=True,
+        )
 
-        btc_candidates = []
-        for m in markets.get("markets", []):
-            ticker = str(m.get("ticker", "")).upper()
-            event_ticker = str(m.get("event_ticker", "")).upper()
-            title = str(m.get("title", "")).upper()
-            if "KXBTC15M" in ticker or "KXBTC15M" in event_ticker or "BITCOIN" in title:
-                btc_candidates.append({
-                    "ticker": m.get("ticker"),
-                    "title": m.get("title"),
-                    "event_ticker": m.get("event_ticker"),
-                    "status": m.get("status"),
-                })
-
-        print("BTC candidates found:", len(btc_candidates), flush=True)
-        for candidate in btc_candidates[:20]:
-            print(candidate, flush=True)
-
-        btc_market = find_btc_market(markets)
+    btc_market = choose_active_market(markets)
 
     if not btc_market:
-        notify("No BTC 15-minute market found.")
-        print("No BTC 15-minute market found.", flush=True)
+        notify("No open BTC 15-minute market found for the series.")
+        print("No open BTC 15-minute market found for the series.", flush=True)
         return
 
     ticker = btc_market["ticker"]
