@@ -56,3 +56,24 @@ class KalshiClient:
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
+
+from urllib.parse import urlparse
+import requests
+
+    def get_positions(self):
+        path = "/portfolio/positions"
+        url = f"{self.base_url}{path}"
+        r = requests.get(url, headers=self._headers("GET", path), timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    def create_order(self, order_data: dict):
+        path = "/portfolio/orders"
+        url = f"{self.base_url}{path}"
+
+        sign_path = urlparse(url).path
+        headers = self._headers("POST", sign_path)
+
+        r = requests.post(url, headers=headers, json=order_data, timeout=15)
+        r.raise_for_status()
+        return r.json()
