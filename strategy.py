@@ -17,27 +17,37 @@ class StrategyEngine:
         self.min_edge = min_edge_cents
         self.max_spread = max_spread_cents
 
+    def _extract_yes(self, orderbook: dict):
+        return (
+            orderbook.get("orderbook_fp", {}).get("yes_dollars")
+            or orderbook.get("orderbook", {}).get("yes")
+            or orderbook.get("yes", [])
+        )
+
+    def _extract_no(self, orderbook: dict):
+        return (
+            orderbook.get("orderbook_fp", {}).get("no_dollars")
+            or orderbook.get("orderbook", {}).get("no")
+            or orderbook.get("no", [])
+        )
+
     def _best_yes_bid(self, orderbook: dict) -> float:
-        yes = orderbook.get("orderbook", {}).get("yes", [])
-        if not yes:
-            yes = orderbook.get("yes", [])
+        yes = self._extract_yes(orderbook)
         if not yes:
             return 0.0
-        return max(float(level[0]) for level in yes) / 100.0
+        return max(float(level[0]) for level in yes)
 
     def _best_no_bid(self, orderbook: dict) -> float:
-        no = orderbook.get("orderbook", {}).get("no", [])
-        if not no:
-            no = orderbook.get("no", [])
+        no = self._extract_no(orderbook)
         if not no:
             return 0.0
-        return max(float(level[0]) for level in no) / 100.0
+        return max(float(level[0]) for level in no)
 
     def _best_yes_ask(self, orderbook: dict) -> float:
         best_no_bid = self._best_no_bid(orderbook)
         if best_no_bid <= 0:
             return 1.0
-        return 1.0 - best_no_bid
+        return max(0.0, 1.0 - best_no_bid)
 
     def _spread(self, orderbook: dict) -> float:
         best_yes_bid = self._best_yes_bid(orderbook)
@@ -47,12 +57,8 @@ class StrategyEngine:
         return max(0.0, best_yes_ask - best_yes_bid)
 
     def _simple_orderbook_imbalance(self, orderbook: dict) -> float:
-        yes = orderbook.get("orderbook", {}).get("yes", [])
-        if not yes:
-            yes = orderbook.get("yes", [])
-        no = orderbook.get("orderbook", {}).get("no", [])
-        if not no:
-            no = orderbook.get("no", [])
+        yes = self._extract_yes(orderbook)
+        no = self._extract_no(orderbook)
 
         yes_size = sum(float(level[1]) for level in yes[:3]) if yes else 0.0
         no_size = sum(float(level[1]) for level in no[:3]) if no else 0.0
@@ -67,11 +73,9 @@ class StrategyEngine:
         best_yes_bid = self._best_yes_bid(orderbook)
         best_yes_ask = self._best_yes_ask(orderbook)
         midpoint = (best_yes_bid + best_yes_ask) / 2.0
-
         imbalance = self._simple_orderbook_imbalance(orderbook)
         adjustment = 0.02 * imbalance
         fair_price = midpoint + adjustment
-
         return max(0.01, min(0.99, fair_price))
 
     def evaluate(self, orderbook: dict) -> StrategyDecision:
