@@ -46,16 +46,21 @@ class KalshiClient:
         return r.json()
 
     def get_markets(self, status=None, limit=100):
-    params = {"limit": limit}
-    if status:
-        params["status"] = status
+        params = {"limit": limit}
+        if status:
+            params["status"] = status
 
-    url = f"{self.base_url}/markets"
-    sign_path = "/trade-api/v2/markets"
+        url = f"{self.base_url}/markets"
+        sign_path = "/trade-api/v2/markets"
 
-    r = requests.get(url, headers=self._headers("GET", sign_path), params=params, timeout=15)
-    r.raise_for_status()
-    return r.json()
+        r = requests.get(
+            url,
+            headers=self._headers("GET", sign_path),
+            params=params,
+            timeout=15,
+        )
+        r.raise_for_status()
+        return r.json()
 
     def get_orderbook(self, ticker: str):
         path = f"/trade-api/v2/markets/{ticker}/orderbook"
