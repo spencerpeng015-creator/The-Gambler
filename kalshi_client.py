@@ -1,8 +1,11 @@
 import base64
 import time
+from urllib.parse import urlparse
+
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+
 
 class KalshiClient:
     def __init__(self, base_url: str, api_key_id: str, private_key_pem: str):
@@ -36,44 +39,37 @@ class KalshiClient:
         }
 
     def get_balance(self):
-        path = "/portfolio/balance"
-        url = f"{self.base_url}{path}"
+        path = "/trade-api/v2/portfolio/balance"
+        url = f"{self.base_url}/portfolio/balance"
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
 
     def get_markets(self, status="open", limit=100):
-        path = f"/markets?status={status}&limit={limit}"
-        signed_path = "/markets"
-        url = f"{self.base_url}{path}"
-        r = requests.get(url, headers=self._headers("GET", signed_path), timeout=15)
+        url = f"{self.base_url}/markets?status={status}&limit={limit}"
+        sign_path = "/trade-api/v2/markets"
+        r = requests.get(url, headers=self._headers("GET", sign_path), timeout=15)
         r.raise_for_status()
         return r.json()
 
     def get_orderbook(self, ticker: str):
-        path = f"/markets/{ticker}/orderbook"
-        url = f"{self.base_url}{path}"
+        path = f"/trade-api/v2/markets/{ticker}/orderbook"
+        url = f"{self.base_url}/markets/{ticker}/orderbook"
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
 
-from urllib.parse import urlparse
-import requests
-
     def get_positions(self):
-        path = "/portfolio/positions"
-        url = f"{self.base_url}{path}"
+        path = "/trade-api/v2/portfolio/positions"
+        url = f"{self.base_url}/portfolio/positions"
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
 
     def create_order(self, order_data: dict):
-        path = "/portfolio/orders"
-        url = f"{self.base_url}{path}"
-
+        url = f"{self.base_url}/portfolio/orders"
         sign_path = urlparse(url).path
         headers = self._headers("POST", sign_path)
-
         r = requests.post(url, headers=headers, json=order_data, timeout=15)
         r.raise_for_status()
         return r.json()
