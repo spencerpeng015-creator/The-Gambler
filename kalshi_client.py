@@ -45,10 +45,21 @@ class KalshiClient:
         r.raise_for_status()
         return r.json()
 
-    def get_markets(self, status=None, limit=500):
+    def get_positions(self):
+        path = "/trade-api/v2/portfolio/positions"
+        url = f"{self.base_url}/portfolio/positions"
+        r = requests.get(url, headers=self._headers("GET", path), timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    def get_markets(self, limit=200, cursor=None, status=None, series_ticker=None):
         params = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
         if status:
             params["status"] = status
+        if series_ticker:
+            params["series_ticker"] = series_ticker
 
         url = f"{self.base_url}/markets"
         sign_path = "/trade-api/v2/markets"
@@ -62,16 +73,16 @@ class KalshiClient:
         r.raise_for_status()
         return r.json()
 
-    def get_orderbook(self, ticker: str):
-        path = f"/trade-api/v2/markets/{ticker}/orderbook"
-        url = f"{self.base_url}/markets/{ticker}/orderbook"
+    def get_market(self, ticker: str):
+        path = f"/trade-api/v2/markets/{ticker}"
+        url = f"{self.base_url}/markets/{ticker}"
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
 
-    def get_positions(self):
-        path = "/trade-api/v2/portfolio/positions"
-        url = f"{self.base_url}/portfolio/positions"
+    def get_orderbook(self, ticker: str):
+        path = f"/trade-api/v2/markets/{ticker}/orderbook"
+        url = f"{self.base_url}/markets/{ticker}/orderbook"
         r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
@@ -81,12 +92,5 @@ class KalshiClient:
         sign_path = urlparse(url).path
         headers = self._headers("POST", sign_path)
         r = requests.post(url, headers=headers, json=order_data, timeout=15)
-        r.raise_for_status()
-        return r.json()
-        
-    def get_market(self, ticker: str):
-        path = f"/trade-api/v2/markets/{ticker}"
-        url = f"{self.base_url}/markets/{ticker}"
-        r = requests.get(url, headers=self._headers("GET", path), timeout=15)
         r.raise_for_status()
         return r.json()
