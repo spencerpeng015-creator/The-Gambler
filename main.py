@@ -1,3 +1,5 @@
+import time
+
 from config import config
 from kalshi_client import KalshiClient
 from risk import RiskManager
@@ -8,21 +10,37 @@ from notifier import notify
 
 def find_btc_market(markets_payload):
     markets = markets_payload.get("markets", [])
+
+    candidates = []
     for market in markets:
         ticker = str(market.get("ticker", "")).upper()
-        title = str(market.get("title", "")).upper()
-        subtitle = str(market.get("subtitle", "")).upper()
-        series_ticker = str(market.get("series_ticker", "")).upper()
         event_ticker = str(market.get("event_ticker", "")).upper()
+        title = str(market.get("title", "")).upper()
+        status = str(market.get("status", "")).lower()
 
-        blob = " ".join([ticker, title, subtitle, series_ticker, event_ticker])
+        if "KXBTC15M" not in ticker and "KXBTC15M" not in event_ticker and "BITCOIN" not in title:
+            continue
 
-        if "BTC" in blob and ("15M" in blob or "15 MIN" in blob or "15-MIN" in blob):
-            return market
-    return None
+        if status not in {"active", "open", "initialized"}:
+            continue
+
+        candidates.append(market)
+
+    if not candidates:
+        return None
+
+    active_first = sorted(
+        candidates,
+        key=lambda m: (
+            0 if str(m.get("status", "")).lower() == "active" else 1,
+            str(m.get("ticker", "")),
+        ),
+    )
+
+    return active_first[0]
 
 
-def main():
+def run_once():
     client = KalshiClient(
         base_url=config.KALSHI_BASE_URL,
         api_key_id=config.KALSHI_API_KEY_ID,
@@ -33,7 +51,7 @@ def main():
     strategy = StrategyEngine()
     execution = ExecutionEngine(client=client, bot_mode=config.BOT_MODE)
 
-    print("=== Starting bot ===")
+    print("=== Starting bot cycle ===")
     print("Mode:", config.BOT_MODE)
 
     balance = client.get_balance()
@@ -47,17 +65,26 @@ def main():
     print("Computed equity:", equity)
     print("Open position exists:", open_position)
 
-    markets = client.get_markets(limit=200)
+    markets = client.get_markets(limit=500)
 
-    print("Sample markets returned:")
-    for m in markets.get("markets", [])[:10]:
-        print({
-            "ticker": m.get("ticker"),
-            "title": m.get("title"),
-            "series_ticker": m.get("series_ticker"),
-            "event_ticker": m.get("event_ticker"),
-            "status": m.get("status"),
-        })
+    print("Total markets returned:", len(markets.get("markets", [])))
+
+    btc_candidates = []
+    for m in markets.get("markets", []):
+        ticker = str(m.get("ticker", "")).upper()
+        event_ticker = str(m.get("event_ticker", "")).upper()
+        title = str(m.get("title", "")).upper()
+        if "KXBTC15M" in ticker or "KXBTC15M" in event_ticker or "BITCOIN" in title:
+            btc_candidates.append({
+                "ticker": m.get("ticker"),
+                "title": m.get("title"),
+                "event_ticker": m.get("event_ticker"),
+                "status": m.get("status"),
+            })
+
+    print("BTC candidates found:", len(btc_candidates))
+    for candidate in btc_candidates[:20]:
+        print(candidate)
 
     btc_market = find_btc_market(markets)
 
@@ -103,18 +130,30 @@ def main():
 
     contracts = execution.contracts_for_dollars(
         trade_dollars=risk_decision.suggested_trade_dollars,
-        yes_price=entry_price,
+        price_dollars=entry_price,
     )
 
     result = execution.submit_limit_buy(
         ticker=ticker,
         side=side,
         count=contracts,
-        yes_price=entry_price,
+        price_dollars=entry_price,
     )
 
     notify(f"{result.mode.upper()} result on {ticker}: {result.message}")
     print("Execution result:", result)
+
+
+def main():
+    while True:
+        try:
+            run_once()
+        except Exception as e:
+            print("Cycle error:", repr(e))
+            notify(f"Cycle error: {repr(e)}")
+
+        print(f"Sleeping {config.LOOP_SECONDS} seconds...")
+        time.sleep(config.LOOP_SECONDS)
 
 
 if __name__ == "__main__":
