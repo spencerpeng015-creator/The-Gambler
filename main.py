@@ -51,8 +51,8 @@ def run_once():
     strategy = StrategyEngine()
     execution = ExecutionEngine(client=client, bot_mode=config.BOT_MODE)
 
-    print("=== Starting bot cycle ===")
-    print("Mode:", config.BOT_MODE)
+    print("=== Starting bot cycle ===", flush=True)
+    print("Mode:", config.BOT_MODE, flush=True)
 
     balance = client.get_balance()
     positions = client.get_positions()
@@ -60,47 +60,58 @@ def run_once():
     equity = risk.portfolio_equity(balance)
     open_position = risk.has_open_position(positions)
 
-    print("Balance payload:", balance)
-    print("Positions payload:", positions)
-    print("Computed equity:", equity)
-    print("Open position exists:", open_position)
+    print("Balance payload:", balance, flush=True)
+    print("Positions payload:", positions, flush=True)
+    print("Computed equity:", equity, flush=True)
+    print("Open position exists:", open_position, flush=True)
 
-    markets = client.get_markets(limit=500)
+    btc_market = None
 
-    print("Total markets returned:", len(markets.get("markets", [])))
+    if config.BTC_TARGET_TICKER:
+        try:
+            direct_market = client.get_market(config.BTC_TARGET_TICKER)
+            market_obj = direct_market.get("market", direct_market)
+            print("Direct ticker lookup succeeded:", market_obj.get("ticker"), flush=True)
+            btc_market = market_obj
+        except Exception as e:
+            print("Direct ticker lookup failed:", repr(e), flush=True)
 
-    btc_candidates = []
-    for m in markets.get("markets", []):
-        ticker = str(m.get("ticker", "")).upper()
-        event_ticker = str(m.get("event_ticker", "")).upper()
-        title = str(m.get("title", "")).upper()
-        if "KXBTC15M" in ticker or "KXBTC15M" in event_ticker or "BITCOIN" in title:
-            btc_candidates.append({
-                "ticker": m.get("ticker"),
-                "title": m.get("title"),
-                "event_ticker": m.get("event_ticker"),
-                "status": m.get("status"),
-            })
+    if not btc_market:
+        markets = client.get_markets(limit=500)
+        print("Total markets returned:", len(markets.get("markets", [])), flush=True)
 
-    print("BTC candidates found:", len(btc_candidates))
-    for candidate in btc_candidates[:20]:
-        print(candidate)
+        btc_candidates = []
+        for m in markets.get("markets", []):
+            ticker = str(m.get("ticker", "")).upper()
+            event_ticker = str(m.get("event_ticker", "")).upper()
+            title = str(m.get("title", "")).upper()
+            if "KXBTC15M" in ticker or "KXBTC15M" in event_ticker or "BITCOIN" in title:
+                btc_candidates.append({
+                    "ticker": m.get("ticker"),
+                    "title": m.get("title"),
+                    "event_ticker": m.get("event_ticker"),
+                    "status": m.get("status"),
+                })
 
-    btc_market = find_btc_market(markets)
+        print("BTC candidates found:", len(btc_candidates), flush=True)
+        for candidate in btc_candidates[:20]:
+            print(candidate, flush=True)
+
+        btc_market = find_btc_market(markets)
 
     if not btc_market:
         notify("No BTC 15-minute market found.")
-        print("No BTC 15-minute market found.")
+        print("No BTC 15-minute market found.", flush=True)
         return
 
     ticker = btc_market["ticker"]
-    print("Selected market:", ticker)
+    print("Selected market:", ticker, flush=True)
 
     orderbook = client.get_orderbook(ticker)
-    print("Orderbook payload:", orderbook)
+    print("Orderbook payload:", orderbook, flush=True)
 
     strategy_decision = strategy.evaluate(orderbook)
-    print("Strategy decision:", strategy_decision)
+    print("Strategy decision:", strategy_decision, flush=True)
 
     proposed_trade_dollars = min(25.0, risk.max_trade_dollars(equity))
 
@@ -109,16 +120,16 @@ def run_once():
         proposed_trade_dollars=proposed_trade_dollars,
         has_open_position=open_position,
     )
-    print("Risk decision:", risk_decision)
+    print("Risk decision:", risk_decision, flush=True)
 
     if strategy_decision.action == "no_trade":
         notify(f"No trade on {ticker}: {strategy_decision.reason}")
-        print("No trade: strategy veto.")
+        print("No trade: strategy veto.", flush=True)
         return
 
     if not risk_decision.approved:
         notify(f"No trade on {ticker}: {risk_decision.reason}")
-        print("No trade: risk veto.")
+        print("No trade: risk veto.", flush=True)
         return
 
     side = "yes" if strategy_decision.action == "buy_yes" else "no"
@@ -141,7 +152,7 @@ def run_once():
     )
 
     notify(f"{result.mode.upper()} result on {ticker}: {result.message}")
-    print("Execution result:", result)
+    print("Execution result:", result, flush=True)
 
 
 def main():
@@ -149,10 +160,10 @@ def main():
         try:
             run_once()
         except Exception as e:
-            print("Cycle error:", repr(e))
+            print("Cycle error:", repr(e), flush=True)
             notify(f"Cycle error: {repr(e)}")
 
-        print(f"Sleeping {config.LOOP_SECONDS} seconds...")
+        print(f"Sleeping {config.LOOP_SECONDS} seconds...", flush=True)
         time.sleep(config.LOOP_SECONDS)
 
 
